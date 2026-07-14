@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>LoL Broadcast Overlay</title>
+<link rel="icon" type="image/png" href="/icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/overlay.css">
+</head>
+<body>
+<div class="stage" id="stage">
+
+  <!-- opaque plate concealing the in-game spectator HUD (cover mode) -->
+  <div class="cover-plate" id="coverPlate"></div>
+
+
+  <!-- ================= center scoreboard bar ================= -->
+  <div class="topbar-wrap" id="topbarWrap">
+    <div class="topbar">
+      <div class="logo-block side-left" id="logoL">
+        <img id="logoImgL" alt="" draggable="false">
+        <span class="logo-fallback" id="logoFbL">BLU</span>
+      </div>
+
+      <div class="team-id side-left">
+        <div class="team-tag" id="tagL">BLU</div>
+        <div class="series" id="seriesL"></div>
+      </div>
+
+      <div class="stat turrets side-left">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M6 3h2.5v2H10V3h4v2h1.5V3H18v5l-2.5 2.5.8 8.5H20v3H4v-3h3.7l.8-8.5L6 8V3zm4.6 8h2.8l.6 8h-4l.6-8z"/></svg>
+        <span class="val" id="turretsL">0</span>
+      </div>
+
+      <div class="stat gold side-left">
+        <svg class="ico" viewBox="0 0 24 24"><ellipse cx="12" cy="6.5" rx="7" ry="3"/><path d="M5 9.5c0 1.7 3.1 3 7 3s7-1.3 7-3v3c0 1.7-3.1 3-7 3s-7-1.3-7-3v-3z"/><path d="M5 15c0 1.7 3.1 3 7 3s7-1.3 7-3v3c0 1.7-3.1 3-7 3s-7-1.3-7-3v-3z"/></svg>
+        <span class="val" id="goldL">0.0k</span>
+      </div>
+
+      <div class="kills-block">
+        <span class="kills side-left" id="killsL">0</span>
+        <div class="vs-badge">
+          <svg viewBox="0 0 24 24"><path d="M3 3l7.5 9.5L8 15l-3-1 1 3 2.5 2.5L11 17l1-1 1 1 2.5 2.5L18 17l1-3-3 1-2.5-2.5L21 3h-4l-5 6.5L7 3H3z"/></svg>
+        </div>
+        <span class="kills side-right" id="killsR">0</span>
+      </div>
+
+      <div class="stat gold side-right">
+        <span class="val" id="goldR">0.0k</span>
+        <svg class="ico" viewBox="0 0 24 24"><ellipse cx="12" cy="6.5" rx="7" ry="3"/><path d="M5 9.5c0 1.7 3.1 3 7 3s7-1.3 7-3v3c0 1.7-3.1 3-7 3s-7-1.3-7-3v-3z"/><path d="M5 15c0 1.7 3.1 3 7 3s7-1.3 7-3v3c0 1.7-3.1 3-7 3s-7-1.3-7-3v-3z"/></svg>
+      </div>
+
+      <div class="stat turrets side-right">
+        <span class="val" id="turretsR">0</span>
+        <svg class="ico" viewBox="0 0 24 24"><path d="M6 3h2.5v2H10V3h4v2h1.5V3H18v5l-2.5 2.5.8 8.5H20v3H4v-3h3.7l.8-8.5L6 8V3zm4.6 8h2.8l.6 8h-4l.6-8z"/></svg>
+      </div>
+
+      <div class="team-id side-right">
+        <div class="team-tag" id="tagR">RED</div>
+        <div class="series" id="seriesR"></div>
+      </div>
+
+      <div class="logo-block side-right" id="logoR">
+        <img id="logoImgR" alt="" draggable="false">
+        <span class="logo-fallback" id="logoFbR">RED</span>
+      </div>
+    </div>
+
+    <!-- clock + dragon trays hanging under the bar -->
+    <div class="under-bar">
+      <div class="drake-tray side-left" id="drakesL"></div>
+      <div class="clock-chip"><span id="clock">00:00</span></div>
+      <div class="drake-tray side-right" id="drakesR"></div>
+    </div>
+  </div>
+
+  <!-- ================= next dragon (top-left) ================= -->
+  <div class="corner corner-left" id="dragonWidget">
+    <div class="corner-icon" id="dragonWidgetIcon"></div>
+    <div class="corner-body">
+      <div class="corner-label" id="dragonLabel">DRAGON</div>
+      <div class="corner-time" id="dragonTimer">--:--</div>
+    </div>
+  </div>
+
+  <!-- ================= baron (top-right) ================= -->
+  <div class="corner corner-right" id="baronWidget">
+    <div class="corner-body align-right">
+      <div class="corner-label"><span id="baronLabel">BARON</span> <span class="buff-team" id="buffTeam"></span></div>
+      <div class="corner-time" id="baronTimer">--:--</div>
+      <div class="buff-bar" id="buffBar"><div class="buff-fill" id="buffFill"></div></div>
+      <div class="gold-swing" id="goldSwing"></div>
+    </div>
+    <div class="corner-icon" id="baronIcon"></div>
+  </div>
+
+</div>
+<script src="/overlay.js"></script>
+</body>
+</html>

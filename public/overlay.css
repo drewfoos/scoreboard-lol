@@ -1,0 +1,367 @@
+/* LoL esports broadcast overlay — transparent OBS browser source, 1920x1080.
+   All colors flow from theme variables set by overlay.js (applyTheme); the
+   :root defaults below match the stock look so the page renders correctly
+   before the first config frame arrives. Derived shades (alpha/blends) are
+   computed in JS for OBS's older embedded Chromium — no color-mix() here. */
+
+:root {
+  --gold: #C8AA6E;
+  --gold-bright: #F0E6D2;
+  --gold-dim: rgba(200, 170, 110, 0.45);
+  --accent-a30: rgba(200, 170, 110, 0.3);
+  --accent-a22: rgba(200, 170, 110, 0.22);
+  --text-a08: rgba(240, 230, 210, 0.08);
+  --text-a10: rgba(240, 230, 210, 0.1);
+  --text-a14: rgba(240, 230, 210, 0.14);
+  --text-a28: rgba(240, 230, 210, 0.28);
+  --bar-top: rgba(20, 24, 31, 0.93);
+  --bar-bot: rgba(9, 11, 15, 0.96);
+  --bg-a82: rgba(9, 11, 15, 0.82);
+  --bg-a94: rgba(9, 11, 15, 0.94);
+  --chip-top: rgba(9, 11, 15, 0.96);
+  --chip-bot: rgba(16, 20, 26, 0.92);
+  --panel-lit: #2a3140;
+  --ink: rgba(9, 11, 15, 0.94);
+  --blue: #0AC8B9;
+  --red: #E84057;
+  --team-l: #0AC8B9;
+  --team-r: #E84057;
+  --team-l-glow: rgba(10, 200, 185, 0.65);
+  --team-r-glow: rgba(232, 64, 87, 0.65);
+  --font-head: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --font-body: "Barlow Condensed", "Arial Narrow", sans-serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body { background: transparent; overflow: hidden; }
+
+.stage {
+  position: relative;
+  width: 1920px;
+  height: 1080px;
+  font-family: var(--font-head);
+  color: var(--gold-bright);
+  opacity: 1;
+  transition: opacity 0.6s ease;
+}
+.stage.hidden { opacity: 0; }
+
+/* ============================ cover plate ============================ */
+/* Fully opaque — must not let the in-game HUD bleed through. */
+.cover-plate {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 1300px;
+  height: 110px;
+  background: linear-gradient(180deg, var(--plate-top, #181e28) 0%, var(--plate-bot, #090b0f) 100%);
+  border-bottom: 1px solid var(--gold-dim);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 34px) 100%, 34px 100%);
+}
+.stage.cover .cover-plate { display: block; }
+
+/* ============================ hybrid mode ============================ */
+/* Plate covers only Riot's top numbers row; Riot's own taken-drake element
+   icons below it stay visible, so our duplicate icons hide and the objective
+   chips shift outward to leave that strip clear. */
+/* single bottom edge in hybrid: the plate's border is THE gold line; the
+   bar itself goes borderless so the two can't double up */
+.hybrid .topbar { border-bottom: none; box-shadow: none; }
+.hybrid .drake { display: none; }
+.hybrid .drake-tray.side-left  { right: calc(50% + 180px); }
+.hybrid .drake-tray.side-right { left: calc(50% + 180px); }
+/* opaque, wide + short chip so Riot's own clock underneath stays hidden */
+.hybrid .clock-chip {
+  background: var(--plate-bot, #090b0f);
+  min-width: 170px;
+  min-height: 36px;
+  font-size: 23px;
+  text-align: center;
+  padding: 4px 20px 6px;
+}
+
+/* ============================== top bar ============================== */
+
+.topbar-wrap {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: bar-in 0.7s cubic-bezier(0.2, 0.9, 0.25, 1) both;
+}
+@keyframes bar-in {
+  from { transform: translate(-50%, -110%); }
+  to   { transform: translate(-50%, 0); }
+}
+
+.topbar {
+  display: flex;
+  align-items: stretch;
+  height: 58px;
+  background: linear-gradient(180deg, var(--bar-top) 0%, var(--bar-bot) 100%);
+  border-bottom: 1px solid var(--gold-dim);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.55), inset 0 1px 0 var(--text-a08);
+}
+
+/* team logo blocks — taller than the bar, team-color edge */
+.logo-block {
+  position: relative;
+  width: 78px;
+  height: 72px;
+  background: linear-gradient(180deg, var(--panel-lit), var(--bar-bot));
+  border-bottom: 3px solid var(--team-color, var(--gold));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+.logo-block.side-left  { box-shadow: -8px 4px 18px rgba(0, 0, 0, 0.45); }
+.logo-block.side-right { box-shadow:  8px 4px 18px rgba(0, 0, 0, 0.45); }
+.logo-block img {
+  max-width: 58px;
+  max-height: 54px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+}
+.logo-block img[src=""] { display: none; }
+.logo-fallback {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-size: 27px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--team-blend, #10141a);
+  border: 1px solid var(--team-color, var(--gold));
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+.logo-block.no-logo .logo-fallback { display: flex; }
+.logo-block.no-logo img { display: none; }
+
+/* tag + series dots */
+.team-id {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 86px;
+  padding: 0 14px;
+}
+.team-tag {
+  font-size: 27px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #fff;
+  line-height: 1;
+  text-shadow: 0 0 14px var(--team-glow, transparent);
+}
+.series { display: flex; gap: 5px; }
+.series .dot {
+  width: 16px;
+  height: 4px;
+  background: var(--text-a28);
+}
+.series .dot.won { background: var(--gold); box-shadow: 0 0 6px var(--gold-dim); }
+
+/* stat cells */
+.stat {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 16px;
+  border-left: 1px solid var(--text-a08);
+}
+.side-right.stat { border-left: none; border-right: 1px solid var(--text-a08); }
+.stat .val {
+  font-size: 27px;
+  font-weight: 600;
+  color: var(--gold-bright);
+  line-height: 1;
+  min-width: 34px;
+  font-variant-numeric: tabular-nums;
+}
+.stat.gold .val { min-width: 64px; color: var(--gold); }
+.side-left.stat.gold .val, .side-left.stat .val { text-align: left; }
+.side-right.stat .val { text-align: right; }
+.ico { width: 21px; height: 21px; fill: var(--gold); opacity: 0.9; }
+
+/* kills center block */
+.kills-block {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 0 20px;
+  background: linear-gradient(180deg, var(--text-a08), rgba(0, 0, 0, 0));
+  border-left: 1px solid var(--text-a10);
+  border-right: 1px solid var(--text-a10);
+}
+.kills {
+  font-size: 46px;
+  font-weight: 700;
+  line-height: 1;
+  min-width: 56px;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+.kills.side-left  { text-align: right; text-shadow: 0 0 18px var(--team-l-glow); }
+.kills.side-right { text-align: left;  text-shadow: 0 0 18px var(--team-r-glow); }
+.kills.bump { animation: bump 0.45s cubic-bezier(0.2, 1.6, 0.4, 1); }
+@keyframes bump { 30% { transform: scale(1.28); } }
+
+.vs-badge {
+  width: 34px;
+  height: 34px;
+  transform: rotate(45deg);
+  background: linear-gradient(135deg, var(--panel-lit), var(--bar-bot));
+  border: 1px solid var(--gold-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}
+.vs-badge svg { width: 20px; height: 20px; transform: rotate(-45deg); fill: var(--gold); }
+
+/* under-bar: clock + dragon trays, all centered on the bar's midline */
+.under-bar {
+  position: relative;
+  width: 100%;
+  height: 36px;
+}
+.clock-chip {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 3px 22px 5px;
+  background: linear-gradient(180deg, var(--chip-top), var(--chip-bot));
+  border: 1px solid var(--accent-a30);
+  border-top: none;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 10px 100%);
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--gold-bright);
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+}
+.drake-tray {
+  position: absolute;
+  display: flex;
+  gap: 7px;
+  padding: 5px 14px 6px;
+  background: var(--bg-a82);
+  border: 1px solid var(--accent-a22);
+  border-top: none;
+  min-width: 128px;
+  height: 31px;
+  align-items: center;
+}
+.obj-chip {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--gold-bright);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.obj-chip + .drake, .drake + .obj-chip { margin-left: 5px; }
+.no-logos .logo-block { display: none; }
+.drake-tray:empty { display: none; }
+.drake-tray.side-left  { right: calc(50% + 78px); justify-content: flex-end; clip-path: polygon(10px 0, 100% 0, 100% 100%, 0 100%); }
+.drake-tray.side-right { left: calc(50% + 78px); justify-content: flex-start; clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 100%, 0 100%); }
+.drake {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: drake-in 0.5s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+.drake svg { width: 19px; height: 19px; }
+@keyframes drake-in { from { transform: scale(0); } to { transform: scale(1); } }
+
+/* ============================ corner widgets ============================ */
+
+.corner {
+  position: absolute;
+  top: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  background: linear-gradient(180deg, var(--chip-bot), var(--bg-a94));
+  border: 1px solid var(--accent-a30);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  /* fill backwards (not both) so the .off class can win after the intro */
+  animation: corner-in 0.7s 0.25s cubic-bezier(0.2, 0.9, 0.25, 1) backwards;
+  transition: opacity 0.4s;
+}
+.corner.off { opacity: 0; }
+.pregame .corner { opacity: 0; }
+.pregame .clock-chip { font-size: 17px; letter-spacing: 0.16em; padding-top: 7px; padding-bottom: 8px; color: var(--gold); }
+.pregame .stat .val, .pregame .kills { opacity: 0.45; }
+.corner-left  { left: 24px;  border-left: 3px solid var(--obj-color, var(--gold)); }
+.corner-right { right: 24px; border-right: 3px solid var(--obj-color, #7B4FA8); }
+@keyframes corner-in { from { opacity: 0; transform: translateY(-16px); } to { opacity: 1; transform: none; } }
+
+.corner-icon { width: 30px; height: 30px; }
+.corner-icon svg { width: 100%; height: 100%; }
+.corner-body { display: flex; flex-direction: column; gap: 2px; }
+.corner-body.align-right { align-items: flex-end; }
+.corner-label {
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--gold);
+  line-height: 1;
+}
+.corner-time {
+  font-size: 26px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.corner-time.soon { color: #FFD25F; animation: pulse 1s infinite; }
+@keyframes pulse { 50% { opacity: 0.55; } }
+
+.buff-team { color: #fff; }
+.buff-bar {
+  width: 132px;
+  height: 5px;
+  margin-top: 3px;
+  background: var(--text-a14);
+  display: none;
+}
+.buff-bar.on { display: block; }
+.buff-fill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #6C3FA8, #B07BE0);
+  box-shadow: 0 0 8px rgba(150, 90, 220, 0.8);
+  transition: width 0.5s linear;
+}
+.gold-swing {
+  font-family: var(--font-body);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--gold-bright);
+  font-variant-numeric: tabular-nums;
+  display: none;
+}
+.gold-swing.on { display: block; }
+.gold-swing .pos { color: #6FE3A5; }
+.gold-swing .neg { color: #E8657A; }

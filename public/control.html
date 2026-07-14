@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LoL Scoreboard</title>
+<link rel="icon" type="image/png" href="/icon.png">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --gold: #C8AA6E; --gold-bright: #F0E6D2; --bg: #0B0E12; --panel: #141922;
+    --line: rgba(200,170,110,.25);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: var(--bg); color: var(--gold-bright);
+    font-family: Barlow, sans-serif; min-height: 100vh; padding: 32px;
+  }
+  /* match the card grid width exactly: 2 cards x 460 + 24 gap */
+  .wrap { max-width: 944px; margin: 0 auto; }
+  h1 {
+    font-family: "Barlow Condensed", sans-serif; font-weight: 700; letter-spacing: .12em;
+    color: var(--gold); font-size: 28px; margin-bottom: 4px; text-transform: uppercase;
+  }
+  .sub { color: rgba(240,230,210,.5); font-size: 14px; margin-bottom: 28px; }
+  .sub code { color: var(--gold); }
+  .teams { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 24px; justify-content: center; }
+  .card {
+    background: var(--panel); border: 1px solid var(--line); padding: 22px 26px;
+    width: 460px; border-top: 3px solid var(--accent, var(--gold));
+  }
+  .card h2 {
+    font-family: "Barlow Condensed", sans-serif; letter-spacing: .1em; font-size: 18px;
+    color: var(--accent, var(--gold)); margin-bottom: 16px; text-transform: uppercase;
+  }
+  label { display:block; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: rgba(240,230,210,.55); margin: 12px 0 4px; }
+  input[type=text], input[type=number], select {
+    width: 100%; background: #0d1117; border: 1px solid rgba(240,230,210,.15);
+    color: var(--gold-bright); padding: 8px 10px; font-family: inherit; font-size: 15px;
+  }
+  input:focus, select:focus { outline: 1px solid var(--gold); }
+  .row { display: flex; gap: 10px; }
+  .row > div { flex: 1; }
+  input[type=color] { width: 100%; height: 37px; background: #0d1117; border: 1px solid rgba(240,230,210,.15); padding: 2px; }
+  .logo-drop {
+    margin-top: 4px; border: 1px dashed rgba(240,230,210,.25); padding: 10px;
+    display: flex; align-items: center; gap: 12px; cursor: pointer; min-height: 64px;
+  }
+  .logo-drop:hover { border-color: var(--gold); }
+  .logo-drop img { max-height: 44px; max-width: 60px; }
+  .logo-drop span { font-size: 13px; color: rgba(240,230,210,.5); }
+  .logo-drop input { display: none; }
+  .actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: center; }
+  button {
+    font-family: "Barlow Condensed", sans-serif; font-size: 17px; font-weight: 600;
+    letter-spacing: .1em; text-transform: uppercase; cursor: pointer;
+    padding: 10px 26px; border: 1px solid var(--gold); background: transparent; color: var(--gold);
+    transition: background .15s, color .15s;
+  }
+  button:hover { background: var(--gold); color: #0B0E12; }
+  button.primary { background: var(--gold); color: #0B0E12; }
+  button.primary:hover { background: var(--gold-bright); border-color: var(--gold-bright); }
+  .global { background: var(--panel); border: 1px solid var(--line); padding: 20px; width: 340px; margin-bottom: 20px; }
+  #status { font-size: 14px; color: #6FE3A5; opacity: 0; transition: opacity .3s; }
+  #status.show { opacity: 1; }
+  .winbtns { display: flex; gap: 8px; align-items: center; }
+  .winbtns button { padding: 4px 14px; font-size: 16px; }
+  .winbtns .wins { font-size: 22px; font-family: "Barlow Condensed"; min-width: 24px; text-align: center; }
+  .statusbar {
+    display: flex; align-items: center; gap: 10px; margin: -8px 0 16px;
+    background: var(--panel); border: 1px solid var(--line); padding: 10px 16px;
+    font-size: 14px;
+  }
+  .obs-help {
+    background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--gold);
+    padding: 12px 16px; font-size: 13.5px; color: rgba(240,230,210,.65);
+    margin-bottom: 26px; line-height: 1.55;
+  }
+  .obs-help b { color: var(--gold); font-weight: 600; }
+  .statusbar .spacer { flex: 1; }
+  .statusbar .obs { color: rgba(240,230,210,.5); }
+  .statusbar code { color: var(--gold); user-select: all; }
+  .statusbar button { padding: 3px 12px; font-size: 13px; }
+  button.danger { border-color: #B0485A; color: #E8657A; }
+  button.danger:hover { background: #B0485A; color: #fff; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: #E8A13F; box-shadow: 0 0 8px #E8A13F; }
+  .dot.live { background: #6FE3A5; box-shadow: 0 0 8px #6FE3A5; }
+  .setting-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; }
+  .setting-row:first-of-type { margin-top: 4px; }
+  label.inline { margin: 0; }
+  select.compact { width: 150px; font-size: 14px; padding: 6px 8px; }
+  label.chk {
+    display: flex; align-items: center; gap: 9px; margin: 0;
+    text-transform: none; letter-spacing: 0; font-size: 14px; color: var(--gold-bright);
+    cursor: pointer;
+  }
+  label.chk input { accent-color: var(--gold); width: 15px; height: 15px; }
+  .hint { font-size: 13px; color: rgba(240,230,210,.5); margin-bottom: 14px; line-height: 1.5; }
+  .hint b { color: var(--gold); }
+  .liveobj h3 {
+    font-family: "Barlow Condensed", sans-serif; font-size: 15px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--gold); margin-bottom: 10px;
+  }
+  .obj-buttons { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .obj-buttons select { width: 100px; font-size: 13px; padding: 6px 6px; }
+  .obj-buttons button { padding: 7px 14px; font-size: 14px; }
+  #objStatus { color: #6FE3A5; }
+  .adj h3 {
+    font-family: "Barlow Condensed", sans-serif; font-size: 15px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--gold); margin-bottom: 10px;
+  }
+  .adj-nums { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+  .adj-nums label {
+    display: flex; flex-direction: column; gap: 4px; margin: 0; font-size: 11px;
+  }
+  .adj-nums input { width: 64px; font-size: 14px; padding: 6px 8px; }
+  .adj-drakes { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .adj-drakes select { width: 110px; font-size: 13px; padding: 5px 6px; }
+  .adj-drakes button { padding: 5px 12px; font-size: 13px; }
+  .drake-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .drake-chips span {
+    background: #0d1117; border: 1px solid var(--line); padding: 3px 9px;
+    font-size: 12.5px; cursor: pointer; user-select: none;
+  }
+  .drake-chips span:hover { border-color: #E8657A; color: #E8657A; }
+  .appbrand { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; }
+  .appbrand img { width: 52px; height: 52px; filter: drop-shadow(0 3px 8px rgba(0,0,0,.5)); }
+  .brand-name {
+    font-family: "Barlow Condensed", sans-serif; font-size: 30px; font-weight: 700;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--gold-bright); line-height: 1;
+  }
+  .brand-name span { color: var(--gold); }
+  .brand-sub { font-size: 12.5px; color: rgba(240,230,210,.45); letter-spacing: .04em; margin-top: 4px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+  <div class="appbrand">
+    <img src="/icon.png" alt="">
+    <div>
+      <div class="brand-name">LoL <span>Scoreboard</span></div>
+      <div class="brand-sub">Broadcast overlay control &middot; v1.0.0</div>
+    </div>
+  </div>
+  <div class="statusbar">
+    <span class="dot" id="feedDot"></span>
+    <span id="feedText">Connecting…</span>
+    <span class="spacer"></span>
+    <span class="obs">OBS Browser Source:</span> <code id="overlayUrl"></code>
+    <button type="button" id="copyUrl">Copy</button>
+    <button type="button" id="quitBtn" class="danger" title="Stops the overlay server">Quit App</button>
+  </div>
+  <div class="obs-help">
+    <b>Adding the overlay to OBS:</b>
+    Sources → <b>+</b> → <b>Browser</b> → paste the overlay URL above.
+    Set the source Width/Height to <b>1920 &times; 1080</b> and layer it above your game capture.
+    If it looks misplaced, select the source and press <b>Ctrl+F</b> (Fit to Screen).
+    <br><b>Keep the built-in scoreboard HUD ON in the LoL spectator client</b> —
+    the overlay covers it and lets the game's own drake icons show through.
+    <br><b>Note:</b> only tested at <b>1920&times;1080</b> (game and OBS canvas). Other
+    resolutions are unsupported.
+  </div>
+  <p class="sub">Every change pushes to the overlay automatically — no save button needed.</p>
+
+  <div class="teams" id="teamsWrap">
+    <div class="card" data-side="blue">
+      <h2>Blue Side</h2>
+      <label>Team name</label><input type="text" data-k="name">
+      <div class="row">
+        <div><label>Tag (3-4 chars)</label><input type="text" data-k="tag" maxlength="5"></div>
+        <div><label>Color</label><input type="color" data-k="color"></div>
+      </div>
+      <label>Series wins</label>
+      <div class="winbtns">
+        <button type="button" data-win="-1">−</button>
+        <span class="wins" data-k="winsview">0</span>
+        <button type="button" data-win="1">+</button>
+      </div>
+      <label>Logo</label>
+      <label class="logo-drop"><img data-k="logopreview" alt=""><span>Click to upload PNG (transparent bg)</span><input type="file" accept="image/*" data-k="logo"></label>
+    </div>
+
+    <div class="card" data-side="red">
+      <h2>Red Side</h2>
+      <label>Team name</label><input type="text" data-k="name">
+      <div class="row">
+        <div><label>Tag (3-4 chars)</label><input type="text" data-k="tag" maxlength="5"></div>
+        <div><label>Color</label><input type="color" data-k="color"></div>
+      </div>
+      <label>Series wins</label>
+      <div class="winbtns">
+        <button type="button" data-win="-1">−</button>
+        <span class="wins" data-k="winsview">0</span>
+        <button type="button" data-win="1">+</button>
+      </div>
+      <label>Logo</label>
+      <label class="logo-drop"><img data-k="logopreview" alt=""><span>Click to upload PNG (transparent bg)</span><input type="file" accept="image/*" data-k="logo"></label>
+    </div>
+  </div>
+
+  <div class="teams">
+    <div class="card" id="matchCard">
+      <h2>Match Settings</h2>
+      <div class="setting-row">
+        <label class="inline">Series format</label>
+        <select id="bestOf" class="compact">
+          <option value="1">Best of 1</option>
+          <option value="3">Best of 3</option>
+          <option value="5">Best of 5</option>
+        </select>
+      </div>
+      <div class="setting-row">
+        <label class="chk"><input type="checkbox" id="showIdle" checked> Keep scoreboard visible between games</label>
+      </div>
+      <div class="setting-row">
+        <label class="chk"><input type="checkbox" id="showLogos" checked> Show team logo boxes (uncheck for tags only, no images)</label>
+      </div>
+      <div class="setting-row">
+        <label class="inline">Overlay mode</label>
+        <select id="overlayMode" class="compact">
+          <option value="transparent">Transparent (HUD off in game)</option>
+          <option value="cover">Cover (hide in-game HUD)</option>
+          <option value="hybrid">Hybrid (Riot's drake icons show through)</option>
+        </select>
+      </div>
+      <div id="coverTuning" style="display:none;">
+        <div class="setting-row">
+          <label class="inline">Cover width <span class="covval" id="covWVal"></span></label>
+          <input type="range" id="covW" min="600" max="1920" step="10" style="width: 220px;">
+        </div>
+        <div class="setting-row">
+          <label class="inline">Cover height <span class="covval" id="covHVal"></span></label>
+          <input type="range" id="covH" min="40" max="300" step="2" style="width: 220px;">
+        </div>
+        <p class="hint" style="margin: 8px 0 0;">Drag until Riot's HUD is fully hidden behind the plate —
+        changes push live to the overlay. Leave the in-game HUD ON in this mode.</p>
+      </div>
+    </div>
+
+    <div class="card" id="themeCard">
+      <h2>Overlay Theme</h2>
+      <div class="row">
+        <div><label>Accent / Gold</label><input type="color" data-t="accent"></div>
+        <div><label>Text</label><input type="color" data-t="text"></div>
+      </div>
+      <div class="row">
+        <div><label>Background</label><input type="color" data-t="bg"></div>
+        <div><label>Panel Gray</label><input type="color" data-t="panel"></div>
+      </div>
+      <label>Header font (numbers, tags, timers)</label>
+      <select data-t="headerFont" class="fontsel"></select>
+      <label>Body font (small labels)</label>
+      <select data-t="bodyFont" class="fontsel"></select>
+      <label>&nbsp;</label>
+      <button type="button" id="themeReset">Reset theme to default</button>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button id="swapBtn" type="button">Swap Sides</button>
+    <span id="status">Saved ✓</span>
+  </div>
+  </div>
+
+<script>
+  const DEFAULT_THEME = {
+    accent: '#C8AA6E', text: '#F0E6D2', bg: '#090B0F', panel: '#141922',
+    headerFont: 'Barlow Condensed', bodyFont: 'Barlow Condensed',
+  };
+  const FONTS = [
+    'Barlow Condensed', 'Anton', 'Bebas Neue', 'Chakra Petch', 'DM Sans',
+    'Exo 2', 'Inter', 'Montserrat', 'Oswald', 'Rajdhani', 'Roboto Condensed',
+    'Russo One', 'Saira Condensed', 'Teko', 'Titillium Web',
+  ];
+  document.querySelectorAll('select.fontsel').forEach((sel) => {
+    for (const f of FONTS) {
+      const o = document.createElement('option');
+      o.value = f;
+      o.textContent = f;
+      sel.appendChild(o);
+    }
+  });
+  const state = { bestOf: 3, blue: {}, red: {}, theme: { ...DEFAULT_THEME } };
+  document.getElementById('overlayUrl').textContent = location.origin + '/overlay';
+
+  function cardEls(side) {
+    const card = document.querySelector(`.card[data-side="${side}"]`);
+    return {
+      card,
+      name: card.querySelector('[data-k=name]'),
+      tag: card.querySelector('[data-k=tag]'),
+      color: card.querySelector('[data-k=color]'),
+      winsview: card.querySelector('[data-k=winsview]'),
+      logo: card.querySelector('[data-k=logo]'),
+      logopreview: card.querySelector('[data-k=logopreview]'),
+    };
+  }
+
+  function paint() {
+    for (const side of ['blue', 'red']) {
+      const t = state[side], el = cardEls(side);
+      el.card.style.setProperty('--accent', t.color || '#C8AA6E');
+      el.name.value = t.name || '';
+      el.tag.value = t.tag || '';
+      el.color.value = t.color || '#888888';
+      el.winsview.textContent = t.wins || 0;
+      if (t.logo) el.logopreview.src = t.logo; else el.logopreview.removeAttribute('src');
+    }
+    document.getElementById('bestOf').value = state.bestOf || 3;
+    document.getElementById('showIdle').checked = state.showIdle !== false;
+    document.getElementById('showLogos').checked = state.showLogos !== false;
+    document.getElementById('overlayMode').value = state.overlayMode || 'transparent';
+    const cov = state.cover || { width: 1300, height: 110, hybridHeight: 56 };
+    const isHybrid = state.overlayMode === 'hybrid';
+    const h = isHybrid ? (cov.hybridHeight || 56) : cov.height;
+    document.getElementById('covW').value = cov.width;
+    document.getElementById('covH').value = h;
+    document.getElementById('covWVal').textContent = cov.width + 'px';
+    document.getElementById('covHVal').textContent = h + 'px';
+    document.getElementById('coverTuning').style.display =
+      (state.overlayMode === 'cover' || state.overlayMode === 'hybrid') ? 'block' : 'none';
+    const th = { ...DEFAULT_THEME, ...state.theme };
+    document.querySelectorAll('#themeCard [data-t]').forEach((el) => {
+      el.value = th[el.dataset.t] || '';
+    });
+  }
+
+  function collect() {
+    for (const side of ['blue', 'red']) {
+      const el = cardEls(side);
+      state[side].name = el.name.value.trim();
+      state[side].tag = el.tag.value.trim();
+      state[side].color = el.color.value;
+    }
+    state.bestOf = Number(document.getElementById('bestOf').value);
+    state.showIdle = document.getElementById('showIdle').checked;
+    state.showLogos = document.getElementById('showLogos').checked;
+    state.overlayMode = document.getElementById('overlayMode').value;
+    state.cover = state.cover || {};
+    state.cover.width = Number(document.getElementById('covW').value) || 1300;
+    const hVal = Number(document.getElementById('covH').value);
+    if (state.overlayMode === 'hybrid') state.cover.hybridHeight = hVal || 56;
+    else state.cover.height = hVal || 110;
+    state.theme = state.theme || {};
+    document.querySelectorAll('#themeCard [data-t]').forEach((el) => {
+      state.theme[el.dataset.t] = el.value.trim() || DEFAULT_THEME[el.dataset.t];
+    });
+  }
+
+  for (const side of ['blue', 'red']) {
+    const el = cardEls(side);
+    el.logo.addEventListener('change', () => {
+      const f = el.logo.files[0];
+      if (!f) return;
+      if (f.size > 2e6) { alert('Keep logos under 2 MB'); return; }
+      const r = new FileReader();
+      r.onload = () => { state[side].logo = r.result; paint(); save(); };
+      r.readAsDataURL(f);
+    });
+    el.card.querySelectorAll('[data-win]').forEach((b) =>
+      b.addEventListener('click', () => {
+        state[side].wins = Math.max(0, (state[side].wins || 0) + Number(b.dataset.win));
+        paint();
+      }));
+    el.color.addEventListener('input', () => { state[side].color = el.color.value; paint(); });
+  }
+
+  async function save() {
+    collect();
+    const res = await fetch('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(state),
+    });
+    if (res.ok) {
+      const s = document.getElementById('status');
+      s.classList.add('show');
+      setTimeout(() => s.classList.remove('show'), 1500);
+    } else {
+      alert('Save failed: ' + (await res.text()));
+    }
+  }
+
+
+  // overlay mode + cover sliders push live (debounced) for visual tuning
+  let covTimer = null;
+  function livePush() {
+    collect();
+    paint();
+    clearTimeout(covTimer);
+    covTimer = setTimeout(save, 150);
+  }
+  document.getElementById('overlayMode').addEventListener('change', livePush);
+  document.getElementById('covW').addEventListener('input', livePush);
+  document.getElementById('covH').addEventListener('input', livePush);
+
+  // everything auto-saves: any edit pushes to the overlay (debounced)
+  let autoTimer = null;
+  function autoSave() {
+    clearTimeout(autoTimer);
+    autoTimer = setTimeout(() => { collect(); save(); }, 350);
+  }
+  document.querySelectorAll('.card input, .card select').forEach((el) => {
+    el.addEventListener('input', autoSave);
+    el.addEventListener('change', autoSave);
+  });
+  document.querySelectorAll('.winbtns button').forEach((b) => b.addEventListener('click', autoSave));
+
+  document.getElementById('themeReset').addEventListener('click', () => {
+    state.theme = { ...DEFAULT_THEME };
+    paint();
+    save();
+  });
+  document.getElementById('swapBtn').addEventListener('click', () => {
+    collect();
+    [state.blue, state.red] = [state.red, state.blue];
+    paint();
+    save();
+  });
+
+  fetch('/api/config').then((r) => r.json()).then((cfg) => {
+    Object.assign(state, cfg);
+    paint();
+  });
+
+  document.getElementById('copyUrl').addEventListener('click', () => {
+    navigator.clipboard.writeText(location.origin + '/overlay');
+  });
+
+  document.getElementById('quitBtn').addEventListener('click', async () => {
+    if (!confirm('Quit LoL Scoreboard? The overlay in OBS will go blank.')) return;
+    try { await fetch('/api/quit', { method: 'POST' }); } catch {}
+    window.close();
+  });
+
+  // live feed status via the same stream the overlay uses
+  (function watchFeed() {
+    const dot = document.getElementById('feedDot');
+    const txt = document.getElementById('feedText');
+    const es = new EventSource('/api/stream');
+    es.onmessage = (m) => {
+      try {
+        const st = JSON.parse(m.data).state;
+        dot.classList.toggle('live', !!st.live);
+        txt.textContent = st.live
+          ? ('Game feed LIVE' + (st.hudLive ? ' · HUD reader active (exact gold + counts)' : ''))
+          : 'Waiting for game (spectate or play to begin)';
+      } catch {}
+    };
+    es.onerror = () => {
+      es.close();
+      dot.classList.remove('live');
+      txt.textContent = 'App not reachable — is LoL Scoreboard running?';
+      setTimeout(watchFeed, 3000);
+    };
+  })();
+</script>
+</body>
+</html>

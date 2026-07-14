@@ -1,0 +1,7 @@
+node_modules/
+dist/
+config.json
+*.log
+bridge/bridge-log.jsonl
+assets/webview2/
+.playwright-mcp/

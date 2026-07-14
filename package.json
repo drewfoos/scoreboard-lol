@@ -1,0 +1,30 @@
+{
+  "name": "scoreboard-lol",
+  "version": "1.0.0",
+  "description": "Esports-style League of Legends broadcast scoreboard overlay for OBS, driven by the Live Client Data API (spectator mode)",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "mock": "node server.js --mock",
+    "build": "esbuild server.js --bundle --platform=node --format=cjs --outfile=dist/server.cjs && pkg dist/server.cjs --config package.json --output dist/LoL-Scoreboard.exe && node scripts/set-icon.mjs",
+    "panel": "pwsh -File scripts/make-panel.ps1",
+    "installer": "npm run build && npm run panel && node scripts/make-installer.mjs"
+  },
+  "pkg": {
+    "targets": [
+      "node22-win-x64"
+    ],
+    "assets": [
+      "public/**/*"
+    ]
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "@yao-pkg/pkg": "^6.21.0",
+    "esbuild": "^0.28.1",
+    "resedit": "^3.0.2"
+  }
+}

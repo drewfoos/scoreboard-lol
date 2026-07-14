@@ -1,0 +1,17 @@
+{
+  "name": "lol-scoreboard-bridge",
+  "version": "0.1.0",
+  "description": "Overwolf GEP bridge: relays LoL objective data (jungle_camps etc.) to the LoL Scoreboard server",
+  "main": "main.js",
+  "overwolf": {
+    "packages": [
+      "gep"
+    ]
+  },
+  "scripts": {
+    "start": "ow-electron ."
+  },
+  "devDependencies": {
+    "@overwolf/ow-electron": "latest"
+  }
+}
