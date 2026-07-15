@@ -1,99 +1,66 @@
-# scoreboard-lol
+# LoL Scoreboard
 
-Esports-broadcast-style League of Legends scoreboard overlay for OBS, driven by
-Riot's **Live Client Data API** (`https://127.0.0.1:2999`). No Riot API key, no
-rate limits — the data comes from the game client on this machine.
+**An esports-broadcast-style scoreboard overlay for casting League of Legends games in OBS** — team kills, gold, turrets, objectives, spawn timers, and series score, styled like the pro broadcasts and driven live by Riot's Live Client Data API. No Riot API key, no rate limits, no cloud: everything runs on the caster's PC.
 
-Designed for the **caster/spectator PC**: spectate the match, run this server,
-capture the overlay in OBS on top of the game feed.
+![LoL Scoreboard overlay in a live spectated game](docs/screenshot.png)
 
-## Easiest: the installer
+## Features
 
-```
-npm install          # dev tools only (esbuild + pkg), one time
-npm run installer    # -> dist/LoL-Scoreboard-Setup.exe (~16 MB)
-```
+- **Broadcast top bar** — team logos/tags, best-of series score, turrets taken, team gold, kill score, game clock, per-team objective chips (drakes, grubs, herald, baron)
+- **Objective spawn timers** — dragon countdown top-left; grubs → herald → baron pit progression top-right; baron/elder buff bar with gold swing
+- **Hybrid overlay mode** *(default)* — an opaque plate covers the in-game spectator HUD's numbers while the game's **own drake element icons show through** below, so drake elements are always accurate with zero input
+- **Fully themeable** — four palette colors + header/body Google Fonts, editable live from the control panel
+- **Between-games mode** — the bar stays up with teams and series score between games of a series ("STARTING SOON")
+- **Zero-friction control panel** — native app window; every change pushes to the overlay instantly, no save button
+- **Ships as a normal Windows app** — installer, Start Menu shortcuts, no runtime dependencies (Node is compiled in)
 
-Requires [Inno Setup 6](https://jrsoftware.org/isinfo.php)
-(`winget install -e --id JRSoftware.InnoSetup`) on the build machine only.
+## Install (casters)
 
-The app runs windowless (GUI subsystem, logs to `scoreboard.log`); its face is
-a native WebView2 panel window (`LoL-Scoreboard-Panel.exe`, compiled from
-`scripts/Panel.cs` by `npm run panel` using the csc bundled with Windows).
-Launching the app while it's already running just reopens the panel; the Quit
-button in the panel stops the server. WebView2 runtime is preinstalled on
-Windows 11 / modern Windows 10; if missing, the panel falls back to the
-default browser.
+1. Grab **`LoL-Scoreboard-Setup.exe`** from the [latest release](../../releases/latest) and run it (per-user install, no admin). Windows SmartScreen will warn once — *More info → Run anyway* (unsigned installer).
+2. Launch **LoL Scoreboard** from the Start Menu. The control panel opens automatically.
+3. In OBS: **Sources → + → Browser**, paste `http://localhost:3000/overlay`, set **Width 1920, Height 1080**, layer it above your game capture.
+4. **Keep the built-in scoreboard HUD ON** in the LoL spectator client — the overlay covers it and reuses its drake icons.
+5. Set team names, tags, colors, and logos in the panel. Cast.
 
-Send `dist/LoL-Scoreboard-Setup.exe` to whoever is casting. It installs
-per-user (no admin prompt) with Start Menu shortcuts — **LoL Scoreboard**
-(live) and **LoL Scoreboard (Test Mode)** (simulated game for OBS setup) —
-plus an optional desktop icon. On launch, a console window shows status and
-the control panel opens in the browser automatically; OBS points at the
-overlay URL below. Node is NOT required on their machine. Team settings
-persist in a `config.json` next to the installed exe, and the uninstaller
-(Settings → Apps) removes everything.
+There's also a **Test Mode** Start Menu shortcut that runs a simulated late-game so you can set up your OBS scene without a running game.
 
-`npm run build` alone produces the raw portable `dist/LoL-Scoreboard.exe`
-(~55 MB) if you prefer sending a single file. Flags work on both
-(`--mock` to preview, `--no-open` to skip the browser popup).
-
-Windows SmartScreen may warn on first run (unsigned installer) — "More info →
-Run anyway".
-
-## Running from source
-
-```
-node server.js          # live mode — polls the running LoL client
-node server.js --mock   # simulated late-game for layout/OBS setup
-```
-
-- **Overlay:** `http://localhost:3000/overlay` — add as an OBS **Browser Source**
-  at 1920x1080 (OBS defaults new sources to 800x600, which crops the bar;
-  Ctrl+F / Fit to Screen fixes placement). Layer it above your game capture.
-- **Overlay modes** (Match Settings): **Hybrid** (default) covers Riot's HUD
-  numbers with an opaque plate while the game's own drake element icons show
-  through below — keep the in-game scoreboard HUD ON. **Cover** hides the
-  whole HUD region. **Transparent** is a floating bar — toggle the in-game
-  HUD off for that one.
-- **Only tested at 1920x1080** (game client and OBS canvas). Other resolutions
-  are unsupported.
-- **Control panel:** `http://localhost:3000/control` — team names, tags, colors,
-  logos (PNG upload), series score, best-of, side swap. Saves to `config.json`
-  and pushes to the overlay instantly.
-
-No npm install needed — zero dependencies, Node 18+.
-
-## What the overlay shows
-
-- Center bar: team logos/tags, series score, turrets taken, team gold, kills
-- Game clock and per-team elemental dragon icons under the bar
-- Top-left: next dragon countdown (element shown once the rift has settled;
-  ELDER once a team has soul point)
-- Top-right: baron spawn countdown, and during Baron/Elder buff a draining
-  timer bar plus the gold swing since the buff started
-
-## Honest limitations
-
-- **Team gold is an estimate.** The API only exposes exact gold for the machine's
-  own player, so gold is derived from CS, kills, assists, passive income, and
-  item values (each player's max of formula vs. items owned). Tracks within a
-  few percent of the broadcast number.
-- **Upcoming dragon element** isn't exposed until dragons die; a generic icon is
-  shown until the 3rd dragon fixes the element.
-- CS for non-active players updates in increments of 10 (API quirk).
-
-## Patch constants
-
-Objective timings live at the top of `lib/state.js` (`RULES`): dragon first
-spawn/respawn, baron spawn (currently 25:00), buff durations. Adjust there if a
-patch moves them.
+> ⚠️ **Only tested at 1920×1080** (game client and OBS canvas). Other resolutions are unsupported.
 
 ## How it works
 
-`server.js` polls `/liveclientdata/allgamedata` every 500 ms (self-signed cert
-accepted), `lib/state.js` reduces players + events into broadcast state
-(turret attribution via turret IDs `_T1_`/`_T2_`, dragons/baron via kill events,
-spawn timers via respawn rules), and pushes it to the overlay over
-Server-Sent Events. `lib/mock.js` fabricates a realistic 27-minute game through
-the same engine for preview.
+The app polls the local **Live Client Data API** (`https://127.0.0.1:2999/liveclientdata/allgamedata`) that the game client serves while playing or spectating — kills, scores, items, and game time come from there in real time. Team gold is estimated from CS/kills/income with an item-value floor (the API only exposes exact gold for the active player). Objective *counts* are displayed via the hybrid mode's pass-through of the game's own HUD icons, because the 2026 spectator API no longer emits neutral-monster kill events.
+
+Overlay modes (Match Settings):
+
+| Mode | In-game HUD | What you get |
+|---|---|---|
+| **Hybrid** (default) | ON | Plate hides Riot's numbers; Riot's drake icons show through |
+| Cover | ON | Full plate hides the entire HUD region |
+| Transparent | OFF | Floating bar only |
+
+## Building from source
+
+Requirements: Windows, Node 18+, [Inno Setup 6](https://jrsoftware.org/isinfo.php) (`winget install -e --id JRSoftware.InnoSetup`).
+
+```
+npm install          # dev tools (esbuild, pkg, resedit)
+npm run installer    # -> dist/LoL-Scoreboard-Setup.exe
+```
+
+Dev loop without packaging:
+
+```
+node server.js --mock   # simulated game
+node server.js          # live client mode
+# overlay: http://localhost:3000/overlay   panel: http://localhost:3000/control
+```
+
+The build pipeline: esbuild bundles the zero-dependency Node server → `pkg` compiles a standalone exe → `resedit` stamps the icon/version and flips it to a GUI app → `csc` (bundled with Windows) compiles the native WebView2 panel window → Inno Setup packages the installer.
+
+## Objective timing constants
+
+First-spawn times and respawn rules live in `RULES` at the top of `lib/state.js` (dragon 5:00, grubs 8:00, herald 15:00, baron 20:00, buff durations, soul at 4 drakes). Update there when a patch moves them.
+
+## Disclaimer
+
+LoL Scoreboard isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or managing League of Legends. League of Legends and Riot Games are trademarks or registered trademarks of Riot Games, Inc. Objective icons and fonts are Riot assets obtained via [CommunityDragon](https://communitydragon.org/).
