@@ -196,6 +196,7 @@ html, body { background: transparent; overflow: hidden; }
 .side-left.stat.gold .val, .side-left.stat .val { text-align: left; }
 .side-right.stat .val { text-align: right; }
 .ico { width: 21px; height: 21px; fill: var(--gold); opacity: 0.9; }
+.ico-img { width: 20px; height: 20px; object-fit: contain; }
 
 /* kills center block */
 .kills-block {
