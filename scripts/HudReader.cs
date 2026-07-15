@@ -116,8 +116,9 @@ static class HudReader
 
         if (debugDir != null) DumpDebug(frame, sx, sy, sw, sh, cyanClusters, redClusters, debugDir);
 
-        // blue side: left->right = drakes, grubs, herald, turrets, gold, kills
-        // red side:  left->right = kills, gold, turrets, herald, grubs, drakes
+        // blue side: left->right = drakes, barons, grubs, turrets, gold, kills
+        // red side:  left->right = kills, gold, turrets, grubs, barons, drakes
+        // (per in-game HUD order; there is no herald counter)
         var blue = cyanClusters.OrderBy(c => c.X0).ToList();
         var red = redClusters.OrderBy(c => c.X0).ToList();
 
@@ -130,22 +131,22 @@ static class HudReader
 
     static string SideJson(List<Cluster> side, bool mirrored)
     {
-        // mirrored (red): kills, gold, turrets, herald, grubs, drakes
+        // mirrored (red): kills, gold, turrets, grubs, barons, drakes
         if (side.Count < 5) return "null";
         List<string> vals = side.Select(c => c.Text).ToList();
-        string drakes, grubs, herald, turrets, gold, kills;
+        string drakes, barons, grubs, turrets, gold, kills;
         if (!mirrored)
         {
-            drakes = vals[0]; grubs = vals[1]; herald = vals[2]; turrets = vals[3]; gold = vals[4];
+            drakes = vals[0]; barons = vals[1]; grubs = vals[2]; turrets = vals[3]; gold = vals[4];
             kills = vals.Count > 5 ? vals[5] : "";
         }
         else
         {
             int n = vals.Count;
-            drakes = vals[n - 1]; grubs = vals[n - 2]; herald = vals[n - 3]; turrets = vals[n - 4]; gold = vals[n - 5];
+            drakes = vals[n - 1]; barons = vals[n - 2]; grubs = vals[n - 3]; turrets = vals[n - 4]; gold = vals[n - 5];
             kills = n > 5 ? vals[0] : "";
         }
-        return "{\"dragons\":" + Num(drakes) + ",\"grubs\":" + Num(grubs) + ",\"herald\":" + Num(herald) +
+        return "{\"dragons\":" + Num(drakes) + ",\"barons\":" + Num(barons) + ",\"grubs\":" + Num(grubs) +
                ",\"turrets\":" + Num(turrets) + ",\"gold\":" + GoldNum(gold) + ",\"kills\":" + Num(kills) +
                ",\"goldText\":" + Quote(gold) + "}";
     }
@@ -310,14 +311,15 @@ static class HudReader
                 var probe = RasterChar('0', f);
                 if (probe == null) continue;
                 int h = probe.GetLength(1);
-                if (Math.Abs(h - pixelHeight) <= 1)
+                // collect ALL sizes within 2px of the observed glyph height —
+                // multiple variants per char make the nearest-match robust
+                if (Math.Abs(h - pixelHeight) <= 2)
                 {
                     foreach (char ch in CHARS)
                     {
                         var m = RasterChar(ch, f);
                         if (m != null) dict[ch].Add(Normalize(m));
                     }
-                    break;
                 }
             }
         }

@@ -56,9 +56,9 @@ const DEFAULT_CONFIG = {
   // 'cover': full plate. 'transparent': floating bar, HUD off in game.
   overlayMode: 'hybrid',
   cover: { width: 1210, height: 110, hybridHeight: 60 }, // user-calibrated at 1080p
-  // experimental HUD OCR (exact gold/counts in cover mode) — off by default,
-  // enable only by setting this true in config.json
-  hudReader: false,
+  // HUD reading in cover/hybrid mode: occasional screenshots of the concealed
+  // in-game HUD give exact gold + objective counts (drakes/barons/grubs/turrets)
+  hudReader: true,
   // manual corrections for objectives taken before the spectate connected
   adjust: {
     blue: { turrets: 0, grubs: 0, heralds: 0, barons: 0, dragons: [] },
@@ -110,7 +110,8 @@ let lastHudCounts = null; // previous counts, for kill-timer synthesis
 let hudBusy = false;
 
 function pollHud() {
-  if (MOCK || config.hudReader !== true || config.overlayMode !== 'cover' || hudBusy) return;
+  const plateMode = config.overlayMode === 'cover' || config.overlayMode === 'hybrid';
+  if (MOCK || config.hudReader !== true || !plateMode || hudBusy) return;
   if (!fs.existsSync(HUD_EXE)) return;
   hudBusy = true;
   execFile(HUD_EXE, [], { timeout: 5000, windowsHide: true }, (err, stdout) => {
@@ -118,32 +119,57 @@ function pollHud() {
     if (err) { hudData = null; return; }
     try {
       const d = JSON.parse(String(stdout).trim());
-      if (d.ok) {
+      if (d.ok && plausibleHud(d)) {
         hudData = { ...d, ts: Date.now() };
         synthesizeHudTimers(d);
-      } else {
-        hudData = null;
       }
-    } catch { hudData = null; }
+      // implausible/failed reads: keep the previous good data (stale-out
+      // happens naturally via freshHud's age window)
+    } catch { /* keep previous */ }
   });
 }
-setInterval(pollHud, 2000);
+setInterval(pollHud, 10000); // occasional reads — counts change rarely
 
-// A dragon-count increase seen on the HUD anchors the respawn timer, exactly
-// like a manual click would (element unknown -> generic drake icon until a
-// manual entry or event names it).
+// Reject reads that contradict reality: objective counts never decrease
+// within a game, counts are small, gold is bounded. Protects against a
+// window overlapping the game or a glyph misread poisoning the overlay.
+function plausibleHud(d) {
+  for (const side of ['blue', 'red']) {
+    const h = d[side];
+    if (!h) return false;
+    for (const k of ['dragons', 'barons', 'grubs', 'turrets']) {
+      const v = h[k];
+      if (v !== null && (!Number.isInteger(v) || v < 0 || v > 15)) return false;
+      const prev = lastHudCounts?.[side]?.[k];
+      if (Number.isInteger(v) && Number.isInteger(prev) && v < prev) return false;
+    }
+    if (h.gold !== null && (h.gold < 1000 || h.gold > 250000)) return false;
+    const prevGold = lastHudCounts?.[side]?.gold;
+    if (Number.isInteger(h.gold) && Number.isInteger(prevGold) && h.gold < prevGold * 0.9) return false;
+  }
+  return true;
+}
+
+// A dragon/baron count increase seen on the HUD anchors the respawn timer
+// (and for baron, the buff bar), exactly like a manual click would.
 function synthesizeHudTimers(d) {
   if (lastHudCounts) {
     for (const side of ['blue', 'red']) {
-      const cur = d[side]?.dragons, prev = lastHudCounts[side]?.dragons;
-      if (Number.isInteger(cur) && Number.isInteger(prev) && cur > prev) {
-        manualEvents.push({
-          EventName: 'DragonKill', DragonType: 'Unknown',
-          EventTime: latestState.gameTime || 0, KillerName: '',
-          TeamHint: side === 'blue' ? 'ORDER' : 'CHAOS',
-          EventID: 100000 + manualEvents.length, Manual: true, FromHud: true,
-        });
-        console.log(`HUD: ${side} dragon count ${prev} -> ${cur}, respawn timer anchored`);
+      const team = side === 'blue' ? 'ORDER' : 'CHAOS';
+      const mk = (name, extra) => manualEvents.push({
+        EventName: name, ...extra,
+        EventTime: latestState.gameTime || 0, KillerName: '',
+        TeamHint: team, EventID: 100000 + manualEvents.length,
+        Manual: true, FromHud: true,
+      });
+      const cur = d[side], prev = lastHudCounts[side];
+      if (Number.isInteger(cur?.dragons) && Number.isInteger(prev?.dragons) && cur.dragons > prev.dragons) {
+        mk('DragonKill', { DragonType: 'Unknown' });
+        console.log(`HUD: ${side} dragon ${prev.dragons} -> ${cur.dragons}, respawn timer anchored`);
+      }
+      if (Number.isInteger(cur?.barons) && Number.isInteger(prev?.barons) && cur.barons > prev.barons) {
+        mk('BaronKill', {});
+        console.log(`HUD: ${side} baron ${prev.barons} -> ${cur.barons}, buff + respawn anchored`);
       }
     }
   }
@@ -151,7 +177,8 @@ function synthesizeHudTimers(d) {
 }
 
 function freshHud() {
-  return hudData && Date.now() - hudData.ts < 8000 ? hudData : null;
+  // window spans ~2.5 poll periods so one failed read doesn't drop the data
+  return hudData && Date.now() - hudData.ts < 25000 ? hudData : null;
 }
 
 const MANUAL_KINDS = {
