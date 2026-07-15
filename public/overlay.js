@@ -216,8 +216,8 @@ function renderTray(el, team, side, includeDrakes = true) {
     d.appendChild(iconEl(type, 19));
     return d;
   });
-  // grubs live in the main bar now; trays only carry herald/baron chips
   const chips = [];
+  if (t.grubs) chips.push(trayChip('Grub', t.grubs));
   if (t.heralds) chips.push(trayChip('Herald', t.heralds));
   if (t.barons) chips.push(trayChip('Baron', t.barons));
   const ordered = side === 'L' ? [...chips, ...drakes] : [...drakes, ...chips];
@@ -267,8 +267,6 @@ function render(state, cfg) {
     $('goldR').textContent = '—';
     $('turretsL').textContent = '–';
     $('turretsR').textContent = '–';
-    $('grubsL').textContent = '–';
-    $('grubsR').textContent = '–';
     $('clock').textContent = 'STARTING SOON';
     renderTray($('drakesL'), null, 'L');
     renderTray($('drakesR'), null, 'R');
@@ -282,8 +280,6 @@ function render(state, cfg) {
   $('goldR').textContent = fmtGold(R.gold);
   $('turretsL').textContent = L.turrets;
   $('turretsR').textContent = R.turrets;
-  $('grubsL').textContent = L.grubs;
-  $('grubsR').textContent = R.grubs;
   $('clock').textContent = fmtClock(state.gameTime);
 
   renderTray($('drakesL'), L, 'L', cfg.overlayMode !== 'hybrid');
